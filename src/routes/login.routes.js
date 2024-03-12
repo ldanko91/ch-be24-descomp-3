@@ -4,6 +4,7 @@ import passport from "passport";
 import { generateToken } from "../utils/jwt/jwtGenerateToken.js";
 import useValidPassword from "../utils/bcrypt/bryptUseValidPassword.js";
 import { existsToken } from "../utils/jwt/jwtExistsToken.js";
+import { passportCall } from "../utils/jwt/jwtPassportCall.js";
 
 const loginRouter = Router();
 const DBUsersManager = new UsersDBManager();
@@ -40,7 +41,7 @@ loginRouter.post('/login', async (req, res) => {
     }
 });
 
-loginRouter.get('/current', passport.authenticate('jwt', { session: false }), async (req, res) => {
+loginRouter.get('/current', passportCall('jwt'), async (req, res) => {
     try {
         if (req.user.user.role === 'admin') {
             let users = await DBUsersManager.getUsers();
