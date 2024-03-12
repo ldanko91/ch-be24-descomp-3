@@ -1,10 +1,8 @@
 //LIBRERIAS
 import { config } from "dotenv";
 import express from "express";
-import session from "express-session";
 import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
-import MongoStore from "connect-mongo";
 import handlebars from "express-handlebars";
 import { Server } from "socket.io";
 import passport from "passport";
@@ -24,8 +22,6 @@ config();
 const app = express()
 const PORT = process.env.EXPRESS_PORT
 const URL = process.env.DB_URL
-const sessionsURL = process.env.SESSIONS_URL
-const secret = process.env.SESSIONS_SECRET
 
 const httpServer = app.listen(PORT, () => console.log(`Servidor conectado al puerto: ${PORT}`))
 
@@ -35,23 +31,10 @@ const connection = mongoose.connect(URL)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
-app.use(
-    session({
-        secret: secret,
-        store: MongoStore.create({
-            mongoUrl:
-                sessionsURL,
-            mongooseConnection: mongoose.connection,
-        }),
-        resave: false,
-        saveUninitialized: false,
-    })
-)
 
 //CONFIG PASSPORT
 initializePassport()
 app.use(passport.initialize())
-app.use(passport.session())
 
 //config HBS!
 app.engine('handlebars', handlebars.engine());

@@ -25,6 +25,15 @@ export default class UsersDBManager {
 
     }
 
+    getUserById = async (id) => {
+        try {
+            let users = await usersModel.findById(id, { __v: 0 }).lean();
+            return users
+        } catch (error) {
+            console.log(error)
+        }
+
+    }
     getUserByEmail = async (mail) => {
         try {
             let users = await usersModel.findOne(mail, { __v: 0 }).lean();

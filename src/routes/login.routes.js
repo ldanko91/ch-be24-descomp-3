@@ -1,65 +1,57 @@
 import { Router } from "express";
 import UsersDBManager from "../dao/dbManagers/UsersDBManager.js";
-import session from "express-session";
 import passport from "passport";
+import { generateToken } from "../utils/jwt/jwtGenerateToken.js";
+import useValidPassword from "../utils/bcrypt/bryptUseValidPassword.js";
+import { existsToken } from "../utils/jwt/jwtExistsToken.js";
 
 const loginRouter = Router();
 const DBUsersManager = new UsersDBManager();
 
-loginRouter.get('/login', (req, res) => {
-    if (!req.session || !req.session.user) {
+loginRouter.get('/login', existsToken, (req, res) => {
         return res.render('login', {
             title: `Acceso de usuarios`
         })
-    } res.redirect('/api/sessions/profile')
 })
 
-loginRouter.post('/login',
-    passport.authenticate('login', { failureRedirect: '/fail-login' }),
-    async (req, res) => {
-        try {
-        req.session.user = {
-            first_name: req.user.first_name,
-            last_name: req.user.last_name,
-            email: req.user.email,
-            role: req.user.role,
-        }
-
-            res.json({ status: 'Success', message: 'Logged' })
-        } catch (error) {
-            res.status(500).json({ status: 'error', error: 'Internal Server Error' })
-        }
-    }
-)
-
-loginRouter.get(
-    '/githubLogin',
-    passport.authenticate('github', { scope: ['user: email'] }, (req, res) => { })
-)
-
-loginRouter.get('/github-auth', passport.authenticate('github', { failureRedirect: '/api/sessions/login' }),
-    (req, res) => {
-        req.session.user = req.user
-        res.redirect('/api/sessions/profile')
-    }
-)
-
-loginRouter.get('/profile', async (req, res) => {
-    if (!req.session || !req.session.user) {
-        return res.redirect('/api/sessions/login');
-    }
+loginRouter.post('/login', async (req, res) => {
     try {
-        let email = req.session.user.email;
-        let user = await DBUsersManager.getUserByEmail({ email: email });
+        const { email, password } = req.body
+        if (!email || !password)
+            return res.status(400).json({ status: 'error', error: 'Este Bad Request' });
 
-        if (user.role == 'admin') {
+        const user = await DBUsersManager.getUserByEmail({ "email": email });
+
+        if (!user)
+            return res.status(400).json({ status: 'error', message: 'Bad Request' });
+
+        if (!useValidPassword(user, password))
+            return res.status(400).json({ status: 'error', message: 'Bad Request' });
+
+        const token = generateToken({ id: user._id, role: user.role });
+
+        res.cookie('authToken', token, {
+            httpOnly: true,
+        }).redirect('/api/sessions/current');
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ status: 'error', error: 'Internal Server Error' });
+    }
+});
+
+loginRouter.get('/current', passport.authenticate('jwt', { session: false }), async (req, res) => {
+    try {
+        if (req.user.user.role === 'admin') {
             let users = await DBUsersManager.getUsers();
-            res.render('adminSection', {
+            return res.render('adminSection', {
                 users,
                 title: `Listado de usuarios`
             });
         }
 
+        const userId = req.user.user.id;
+        let user = await DBUsersManager.getUserById(req.user.user.id);
         res.render('userProfile', {
             user,
             title: `Perfil de ${user.first_name} ${user.last_name}`
@@ -90,8 +82,8 @@ loginRouter.post('/register', passport.authenticate('register', {
 )
 
 loginRouter.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/api/sessions/login');
+    res.clearCookie('authToken')
+    return res.redirect('/api/sessions/login');
 });
 
 

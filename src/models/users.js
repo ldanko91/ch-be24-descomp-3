@@ -24,12 +24,25 @@ const usersSchema = new mongoose.Schema({
     role: {
         type: String,
         required: true,
-        default: 'usuario'
+        default: 'user'
     },
-    githubId: Number,
-    githubUsername: String,
-    gmailId: Number,
-    facebookId: Number,
+    cart: {
+        type: [
+            {
+                cart: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'cart'
+                },
+                id: {
+                    type: String,
+                    required: true,
+                },
+            },
+        ],
+        default: [],
+        required: true
+    },
+
 })
 
 const usersModel = mongoose.model(usersCollection, usersSchema)
